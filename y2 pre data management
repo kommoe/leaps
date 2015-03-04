@@ -1,0 +1,636 @@
+pre<-read.csv("Y2_fhs_pretest_150206.csv")
+summary(pre)
+names(pre)
+dim(pre)
+library(car)
+
+## Data cleaning (fixing the entry errors/varieties)
+for (i in 18:66) print(table(pre[,i]))
+for (i in 18:66)
+{
+pre[,i]<-recode(pre[,i],"
+ 'A'='A';
+ 'B'='B';
+ 'C'='C';
+ 'D'='D';
+ 'CELL'='CELL';
+ 'DNA'='DNA';
+ 'GENE'='GENE';
+ 'CHROMOSOME'='CHROMOSOME';
+ 'NUCLEUS'='NUCLEUS';
+ 'NUCLEOTIDES'='NUCLEOTIDES';
+ '(A AND D ON SCANTRON)'='';
+ '(AB)'='';
+ '(LEFT REST BLANK)'='';
+ 'A ( C)'='';
+ 'A (D)'='';
+ 'A (NOT A MC QUESTION)'='';
+ 'A(B)'='';
+ 'a'='A';
+ 'AB'='';
+ 'B '='B';
+ 'B ( C )'='';
+ 'B (A)'='';
+ 'B/D'='';
+ 'b'='B';
+ 'BB'='B';
+ 'BC'='';
+ 'Blank'='';
+ 'BLANK'='';
+ 'C (A)'='';
+ 'C (D)'='';
+ 'C (NOT A MC QUESTION)'='';
+ 'C(PUT C IN 44 LEFT 43 BLANK)'='C';
+ 'c'='C';
+ 'Cell'='CELL';
+ 'CHOMOSOME'='CHROMOSOME';
+ 'CHROMOSMOE'='CHROMOSOME';
+ 'Chromosome'='CHROMOSOME';
+ 'Chromosomes'='CHROMOSOME';
+ 'CHROMOSOMES'='CHROMOSOME';
+ 'Chromsome'='CHROMOSOME';
+ 'D (A)'='';
+ 'D (B)'='';
+ 'd'='D';
+ 'DID NOT HAVE REST OF EXAM'='';
+ 'DNA(GENE?) '='';
+ 'E'='D';
+ 'GENE(DNA?0'='GENE';
+ 'Gene'='GENE';
+ 'GENES'='GENE';
+ 'Genes'='GENE';
+ 'LEFT REST BLANK'='';
+ 'NDNA'='DNA';
+ 'NUCLEOTID'='NUCLEOTIDES';
+ 'NUCLEOTIDE'='NUCLEOTIDES';
+ 'Nucleotides'='NUCLEOTIDES';
+ 'NUCLEOTIDESQGENE'='NUCLEOTIDES';
+ 'NUCLEOTIEDS'='NUCLEOTIDES';
+ 'NUCLEOTIES'='NUCLEOTIDES';
+ 'NUCLEOTIRES'='NUCLEOTIDES';
+ 'Nucleus'='NUCLEUS';
+ 'NUCLUES'='NUCLEUS';
+ 'NULEUS'='NUCLEUS';
+ 'REST ARE BLANK'='';
+ 'SPECIAL NOTE'='';
+ else=''",as.factor.result=T)
+}
+pre$i44a <- recode(pre$i44a,"'A'='';'B'=''",as.factor.result=T)
+pre$i44b <- recode(pre$i44b,"'B'=''",as.factor.result=T)
+pre$i44c <- recode(pre$i44c,"'B'=''",as.factor.result=T)
+
+## Identifying the duplicated records with more than 1 StuIDs
+tf<-table(pre$StuID)!=1
+table(pre$StuID)[which(tf==TRUE)]
+tfid<-dimnames(table(pre$StuID)[which(tf==TRUE)])[[1]]
+tfid
+[1] "201805" "306970"
+
+## Dealing with these cases #### NEED TO DISCUSS WITH RAVIT OR THE TEAM!!
+pre[pre$StuID==tfid[1],]
+#201805:
+#         Teacher Period Level  StuID      Studentname StReturned StPermission StVideo StOnline StInterview Unit1Test Unit2Test MPNum MPAlp
+#164 Radziszewski      7   Lab 201805 Browne, Jordan            Y            Y       Y        Y                    35      27.5  88.1     B
+#165 Radziszewski      7   Lab 201805 Coleman, Ta'Quan          Y            Y       N        N                    31      29.0  82.8     B
+#    Dropped Prepost Form i01 i02 i03 i04 i05 i06 i07 i08 i09 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20 i21 i22 i23 i24 i25 i26 i27 i28 i29
+#164               1    B   C   A   B   B   C   A   D   A   B   D   C   D   A   B   C   D   B   C   A   B   C   C   A       B   C   B   B   D
+#165               1    B   A   B   B   C   A   D   A   C   B   D   B   C   C   D   D   C   A   C   B   D   C   D   A   B   A   B   D   B   A
+#    i30 i31 i32 i33 i34 i35 i36 i37 i38 i39 i40 i41 i42 i43 i44a        i44b i44c i44d i44e i44f X
+#164   A   C   D   D   B   A   C   B   C   A   D   C   B   B                                       
+#165   C   D   C       C   B   C   B   D   B   B   D   A   B      NUCLEOTIDES  
+## I temporarily gave Coleman a different ID.
+pre[pre$Studentname=="Coleman, Ta'Quan",]$StuID <- 201806
+
+pre[pre$StuID==tfid[2],]
+#306970: 
+#         Teacher Period  Level  StuID              Studentname StReturned StPermission StVideo StOnline StInterview Unit1Test Unit2Test MPNum
+#127 Radziszewski      3 Honors 306970 Menjivar, Jesus Edgardo           Y            Y       Y        Y                    26      24.5  79.4
+#410         Shah      7 Honors 306970 Menjivar, Jesus Edgardo                                                              NA        NA    NA
+#    MPAlp Dropped Prepost Form i01 i02 i03 i04 i05 i06 i07 i08 i09 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20 i21 i22 i23 i24 i25 i26 i27 i28
+#127     C               1    B   B   A   D   B   D   A   C   B   D   A   C   B   D   A   C   B   A   C   B   D   B   A   D   C   D   B   C   A
+#410                     1                                                                                                                     
+#    i29 i30 i31 i32 i33 i34 i35 i36 i37 i38 i39 i40 i41 i42 i43 i44a i44b i44c i44d i44e i44f X
+#127   C   B   A   D   C   D   B   C   A   D   B   C   B   D   A                                
+#410  
+## I temporarily gave 410 Dropped==Y
+pre$Dropped[410] <- "Y"
+
+##################### NOT FOR AROHI's REQUEST.. FOR LATER
+##### Dropping students from the conquest analysis
+#prepost$Drop <- "N"
+#
+### Duplicated records
+#droplist <- c(313,496,720, #ftid==1
+#              14,421,      #ftid==2
+#              16,417,      #ftid==3
+#              7,408,688,   #ftid==4
+#              17,418,      #ftid==5
+#              20,419,      #ftid==6
+#              47,415,      #ftid==7
+#              10,411)      #ftid==8
+#for (i in droplist) prepost$Drop[i] <- "Y"
+#
+### Study not consented
+#prepost[prepost$StPermission=="N",]$Drop <- "Y"
+#
+### Only the study sample
+#pre<-pre[pre$Dropped!="Y",]
+
+# Separating the forms
+#> names(pre)
+# [1] "Teacher"      "Period"       "Level"        "StuID"        "Studentname"  "StReturned"   "StPermission" "StVideo"      "StOnline"    
+#[10] "StInterview"  "Unit1Test"    "Unit2Test"    "MPNum"        "MPAlp"        "Dropped"      "Prepost"      "Form"         "i01"         
+#[19] "i02"          "i03"          "i04"          "i05"          "i06"          "i07"          "i08"          "i09"          "i10"         
+#[28] "i11"          "i12"          "i13"          "i14"          "i15"          "i16"          "i17"          "i18"          "i19"         
+#[37] "i20"          "i21"          "i22"          "i23"          "i24"          "i25"          "i26"          "i27"          "i28"         
+#[46] "i29"          "i30"          "i31"          "i32"          "i33"          "i34"          "i35"          "i36"          "i37"         
+#[55] "i38"          "i39"          "i40"          "i41"          "i42"          "i43"          "i44a"         "i44b"         "i44c"        
+#[64] "i44d"         "i44e"         "i44f"         "X"  
+
+#pre1 Form A and B items are in order in the columns.
+pre1 <- data.frame(teacher=pre[,1],period=pre[,2],level=pre[,3],stuid=pre[,4],name=pre[,5],stpermission=pre[,7],
+                  dropped=pre[,15],prepost=pre[,16],form=pre[,17],
+                  pre[,18:24],pre[,56:60], #columns for form A items
+                  pre[,25:55],pre[,61:66], #columns for linking items
+                  pre[,18:24],pre[,56:60]) #columns for form B items
+dim(pre1)
+names(pre1)
+
+#> dim(pre1)
+#[1] 421  70
+#> names(pre1)
+# [1] "teacher"      "period"       "level"        "stuid"        "name"         "stpermission" "dropped"      "prepost"      "form"        
+#[10] "i01"          "i02"          "i03"          "i04"          "i05"          "i06"          "i07"          "i39"          "i40"         
+#[19] "i41"          "i42"          "i43"          "i08"          "i09"          "i10"          "i11"          "i12"          "i13"         
+#[28] "i14"          "i15"          "i16"          "i17"          "i18"          "i19"          "i20"          "i21"          "i22"         
+#[37] "i23"          "i24"          "i25"          "i26"          "i27"          "i28"          "i29"          "i30"          "i31"         
+#[46] "i32"          "i33"          "i34"          "i35"          "i36"          "i37"          "i38"          "i44a"         "i44b"        
+#[55] "i44c"         "i44d"         "i44e"         "i44f"         "i01.1"        "i02.1"        "i03.1"        "i04.1"        "i05.1"       
+#[64] "i06.1"        "i07.1"        "i39.1"        "i40.1"        "i41.1"        "i42.1"        "i43.1"  
+
+#need to erase the form A data for form B columns, the form B data for form A columns.
+#pre1 <- pre1[pre1$form!="",]
+pre1[pre1$form=="A",59:70] <-""
+pre1[pre1$form=="B",10:21] <-""
+
+#giving proper names for the items
+names(pre1)[10:70] <- c(
+"genetransfer_r",                           #i01  i01 A1
+"affectphys_r",                             #i02  i02 B
+"notfunction_r",                            #i03  i03 C1
+"auntinherit_r",                            #i04  i04 E
+"ald_r",                                    #i05  i05 F1
+"jellypigletglow_r",                        #i06  i06 A1
+"aminoseq2_r",                              #i07  i07 B
+"aminochains_r",                            #i39  i08 C2
+"dimples_r",                                #i40  i09 E
+"lipinprotein_r",                           #i41  i10 F3
+"aminoseq4_r",                              #i42  i11 B
+"childeyecolornew_r",                       #i43  i12 B
+"spiderwebsilk_r", # Linking block starts   #i08  i13 A1
+"mutationeffect_r",                         #i09  i14 B
+"argueprotein2_r",                          #i10  i15 C1 
+"buildingblocks2_r",                        #i11  i16 C2 
+"boygeneamount_r",                          #i12  i17 E 
+"babytraits2_r",                            #i13  i18 F1 
+"sickangela_r",                             #i14  i19 F2 
+"humangrowth2_r",                           #i15  i20 C1 
+"aminoacidchoose_r",                        #i16  i21 B 
+"valinelysine_r",                           #i17  i22 C2 
+"jasoncells_r",                             #i18  i23 E 
+"modeinherit1_r",                           #i19  i24 F1 
+"heterosick_r",                             #i20  i25 F3 
+"humangenes_r",                             #i21  i26 A3 
+"genefunct1_r",                             #i22  i27 B 
+"milkandeggs3_r",                           #i23  i28 C1 
+"stretchyprot_r",                           #i24  i29 C2 
+"meiosisdna2_r",                            #i25  i30 E 
+"childrenlooks_r",                          #i26  i31 F1 
+"heterodominant_r",                         #i27  i32 F3 
+"animalmole_r",                             #i28  i33 C1 
+"celldivision_r",                           #i29  i34 C1 
+"serinelysine_r",                           #i30  i35 C2 
+"femaleegg_r",                              #i31  i36 E 
+"inheritpattern5_r",                        #i32  i37 F3 
+"twoeggs_r",                                #i33  i38 E 
+"genoch_r",                                 #i34  i39 F1 
+"sicksam_r",                                #i35  i40 F3 
+"robertcells1_r",                           #i36  i41 A3 
+"skipgeneration2_r",                        #i37  i42 E 
+"ginfoeye_r",                               #i38  i43 A3 
+"diagram2label_r1",                         #i44a i44 A2
+"diagram2label_r2",                         #i44b i45 A2
+"diagram2label_r3",                         #i44c i46 A2
+"diagram2label_r4",                         #i44d i47 A2
+"diagram2label_r5",                         #i44e i48 A2
+"diagram2label_r6", # Linking block ends    #i44f i49 A2
+"affectphys3_r",                            #i01  i50 B 
+"aminochains2_r",                           #i02  i51 C2 
+"scorpion_r",                               #i03  i52 A1 
+"freckles_r",                               #i04  i53 E 
+"olinprotein_r",                            #i05  i54 F3 
+"notfunction1_r",                           #i06  i55 C1
+"fabry_r",                                  #i07  i56 F1
+"genetransfer2_r",                          #i39  i57 A1
+"aminoseq3_r",                              #i40  i58 B
+"spermtrait_r",                             #i41  i59 E
+"childskincolor_r",                         #i42  i60 B
+"uncleinherit_r")                           #i43  i61 E
+
+for (i in 53:58) {
+pre1[,i] <- recode(pre1[,i],"
+                               'GENE'='A';
+                               'NUCLEOTIDES'='B';
+                               'CELL'='C';
+                               'NUCLEUS'='D';
+                               'CHROMOSOME'='E';
+                               'DNA'='F';
+                               ''='/'",as.factor.result=T) }
+                               
+
+pre1$diagram2label_rall <- paste(pre1$diagram2label_r1,pre1$diagram2label_r2,pre1$diagram2label_r3,
+                                 pre1$diagram2label_r4,pre1$diagram2label_r5,pre1$diagram2label_r6,
+                                 sep=",")
+table(pre1$diagram2label_rall)
+
+#####
+## _s for all items by correctly scoring all items
+#####
+#pre2 has level-scored data.
+pre2 <- pre1
+
+### For AROHI (only correct/incorrect scoring
+pre2$genetransfer_s_dich     <- recode(pre2$genetransfer_r      ,"'B'=1;else=0",as.factor.result=T)
+pre2$affectphys_s_dich       <- recode(pre2$affectphys_r        ,"'C'=1;else=0",as.factor.result=T)
+pre2$notfunction_s_dich      <- recode(pre2$notfunction_r       ,"'C'=1;else=0",as.factor.result=T)
+pre2$auntinherit_s_dich      <- recode(pre2$auntinherit_r       ,"'B'=1;else=0",as.factor.result=T)
+pre2$ald_s_dich              <- recode(pre2$ald_r               ,"'C'=1;else=0",as.factor.result=T)
+pre2$jellypigletglow_s_dich  <- recode(pre2$jellypigletglow_r   ,"'B'=1;else=0",as.factor.result=T)
+pre2$aminoseq2_s_dich        <- recode(pre2$aminoseq2_r         ,"'B'=1;else=0",as.factor.result=T)
+pre2$aminochains_s_dich      <- recode(pre2$aminochains_r       ,"'A'=1;else=0",as.factor.result=T)
+pre2$dimples_s_dich          <- recode(pre2$dimples_r           ,"'B'=1;else=0",as.factor.result=T)
+pre2$lipinprotein_s_dich     <- recode(pre2$lipinprotein_r      ,"'B'=1;else=0",as.factor.result=T)
+pre2$aminoseq4_s_dich        <- recode(pre2$aminoseq4_r         ,"'D'=1;else=0",as.factor.result=T)
+pre2$childeyecolornew_s_dich <- recode(pre2$childeyecolornew_r  ,"'C'=1;else=0",as.factor.result=T)
+
+pre2$spiderwebsilk_s_dich    <- recode(pre2$spiderwebsilk_r     ,"'D'=1;else=0",as.factor.result=T)
+pre2$mutationeffect_s_dich   <- recode(pre2$mutationeffect_r    ,"'A'=1;else=0",as.factor.result=T)
+pre2$argueprotein2_s_dich    <- recode(pre2$argueprotein2_r     ,"'B'=1;else=0",as.factor.result=T)
+pre2$buildingblocks2_s_dich  <- recode(pre2$buildingblocks2_r   ,"'C'=1;else=0",as.factor.result=T)
+pre2$boygeneamount_s_dich    <- recode(pre2$boygeneamount_r     ,"'D'=1;else=0",as.factor.result=T)
+pre2$babytraits2_s_dich      <- recode(pre2$babytraits2_r       ,"'D'=1;else=0",as.factor.result=T)
+pre2$sickangela_s_dich       <- recode(pre2$sickangela_r        ,"'D'=1;else=0",as.factor.result=T)
+pre2$humangrowth2_s_dich     <- recode(pre2$humangrowth2_r      ,"'A'=1;else=0",as.factor.result=T)
+pre2$aminoacidchoose_s_dich  <- recode(pre2$aminoacidchoose_r   ,"'C'=1;else=0",as.factor.result=T)
+pre2$valinelysine_s_dich     <- recode(pre2$valinelysine_r      ,"'A'=1;else=0",as.factor.result=T)
+pre2$jasoncells_s_dich       <- recode(pre2$jasoncells_r        ,"'B'=1;else=0",as.factor.result=T)
+pre2$modeinherit1_s_dich     <- recode(pre2$modeinherit1_r      ,"'A'=1;else=0",as.factor.result=T)
+pre2$heterosick_s_dich       <- recode(pre2$heterosick_r        ,"'D'=1;else=0",as.factor.result=T)
+pre2$humangenes_s_dich       <- recode(pre2$humangenes_r        ,"'A'=1;else=0",as.factor.result=T)
+pre2$genefunct1_s_dich       <- recode(pre2$genefunct1_r        ,"'D'=1;else=0",as.factor.result=T)
+pre2$milkandeggs3_s_dich     <- recode(pre2$milkandeggs3_r      ,"'D'=1;else=0",as.factor.result=T)
+pre2$stretchyprot_s_dich     <- recode(pre2$stretchyprot_r      ,"'D'=1;else=0",as.factor.result=T)
+pre2$meiosisdna2_s_dich      <- recode(pre2$meiosisdna2_r       ,"'A'=1;else=0",as.factor.result=T)
+pre2$childrenlooks_s_dich    <- recode(pre2$childrenlooks_r     ,"'C'=1;else=0",as.factor.result=T)
+pre2$heterodominant_s_dich   <- recode(pre2$heterodominant_r    ,"'B'=1;else=0",as.factor.result=T)
+pre2$animalmole_s_dich       <- recode(pre2$animalmole_r        ,"'B'=1;else=0",as.factor.result=T)
+pre2$celldivision_s_dich     <- recode(pre2$celldivision_r      ,"'B'=1;else=0",as.factor.result=T)
+pre2$serinelysine_s_dich     <- recode(pre2$serinelysine_r      ,"'B'=1;else=0",as.factor.result=T)
+pre2$femaleegg_s_dich        <- recode(pre2$femaleegg_r         ,"'D'=1;else=0",as.factor.result=T)
+pre2$inheritpattern5_s_dich  <- recode(pre2$inheritpattern5_r   ,"'C'=1;else=0",as.factor.result=T)
+pre2$twoeggs_s_dich          <- recode(pre2$twoeggs_r           ,"'C'=1;else=0",as.factor.result=T)
+pre2$genoch_s_dich           <- recode(pre2$genoch_r            ,"'C'=1;else=0",as.factor.result=T)
+pre2$sicksam_s_dich          <- recode(pre2$sicksam_r           ,"'A'=1;else=0",as.factor.result=T)
+pre2$robertcells1_s_dich     <- recode(pre2$robertcells1_r      ,"'C'=1;else=0",as.factor.result=T)
+pre2$skipgeneration2_s_dich  <- recode(pre2$skipgeneration2_r   ,"'A'=1;else=0",as.factor.result=T)
+pre2$ginfoeye_s_dich         <- recode(pre2$ginfoeye_r          ,"'D'=1;else=0",as.factor.result=T)
+
+pre2$affectphys3_s_dich      <- recode(pre2$affectphys3_r       ,"'C'=1;else=0",as.factor.result=T)
+pre2$aminochains2_s_dich     <- recode(pre2$aminochains2_r      ,"'A'=1;else=0",as.factor.result=T)
+pre2$scorpion_s_dich         <- recode(pre2$scorpion_r          ,"'B'=1;else=0",as.factor.result=T)
+pre2$freckles_s_dich         <- recode(pre2$freckles_r          ,"'C'=1;else=0",as.factor.result=T)
+pre2$olinprotein_s_dich      <- recode(pre2$olinprotein_r       ,"'B'=1;else=0",as.factor.result=T)
+pre2$notfunction1_s_dich     <- recode(pre2$notfunction1_r      ,"'D'=1;else=0",as.factor.result=T)
+pre2$fabry_s_dich            <- recode(pre2$fabry_r             ,"'C'=1;else=0",as.factor.result=T)
+pre2$genetransfer2_s_dich    <- recode(pre2$genetransfer2_r     ,"'B'=1;else=0",as.factor.result=T)
+pre2$aminoseq3_s_dich        <- recode(pre2$aminoseq3_r         ,"'B'=1;else=0",as.factor.result=T)
+pre2$spermtrait_s_dich       <- recode(pre2$spermtrait_r        ,"'C'=1;else=0",as.factor.result=T)
+pre2$childskincolor_s_dich   <- recode(pre2$childskincolor_r    ,"'C'=1;else=0",as.factor.result=T)
+pre2$uncleinherit_s_dich     <- recode(pre2$uncleinherit_r      ,"'B'=1;else=0",as.factor.result=T)
+pre2$diagram2label_s_dich    <- recode(pre2$diagram2label_rall  ,"'D,C,E,A,F,B'=1;else=0",as.factor.result=T)
+
+arohi <- pre2[pre2$teacher=="Shah",]
+scoretemp<-arohi[,72:127]
+for (i in 1:56) scoretemp[,i] <-as.numeric(scoretemp[,i])-1
+arohi$dichsum <- apply(scoretemp,1,sum)
+arohi$percent <- (arohi$dichsum/44) * 100
+write.csv(arohi,file="150217_arohi.csv")
+
+
+ef<-grep("Feliciano",pre2$name)
+es<-grep("Swayne",pre2$name)
+eu<-grep("Ugri",pre2$name)
+elizabeth <- pre2[c(ef,es,eu),]
+scoretemp<-elizabeth[,72:127]
+for (i in 1:56) scoretemp[,i] <-as.numeric(scoretemp[,i])-1
+elizabeth$dichsum <- apply(scoretemp,1,sum)
+elizabeth$percent <- (elizabeth$dichsum/44) * 100
+write.csv(elizabeth,file="150217_elizabeth.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pre2$genetransfer_s     <- recode(pre2$genetransfer_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$affectphys_s       <- recode(pre2$affectphys_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$notfunction_s      <- recode(pre2$notfunction_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$auntinherit_s      <- recode(pre2$auntinherit_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$ald_s              <- recode(pre2$ald_r               ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$jellypigletglow_s  <- recode(pre2$jellypigletglow_r   ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminoseq2_s        <- recode(pre2$aminoseq2_r         ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminochains_s      <- recode(pre2$aminochains_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$dimples_s          <- recode(pre2$dimples_r           ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$lipinprotein_s     <- recode(pre2$lipinprotein_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminoseq4_s        <- recode(pre2$aminoseq4_r         ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$childeyecolornew_s <- recode(pre2$childeyecolornew_r  ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$spiderwebsilk_s    <- recode(pre2$spiderwebsilk_r     ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$mutationeffect_s   <- recode(pre2$mutationeffect_r    ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$argueprotein2_s    <- recode(pre2$argueprotein2_r     ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$buildingblocks2_s  <- recode(pre2$buildingblocks2_r   ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$boygeneamount_s    <- recode(pre2$boygeneamount_r     ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$babytraits2_s      <- recode(pre2$babytraits2_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$sickangela_s       <- recode(pre2$sickangela_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$humangrowth2_s     <- recode(pre2$humangrowth2_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminoacidchoose_s  <- recode(pre2$aminoacidchoose_r   ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$valinelysine_s     <- recode(pre2$valinelysine_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$jasoncells_s       <- recode(pre2$jasoncells_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$modeinherit1_s     <- recode(pre2$modeinherit1_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$heterosick_s       <- recode(pre2$heterosick_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$humangenes_s       <- recode(pre2$humangenes_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$genefunct1_s       <- recode(pre2$genefunct1_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$milkandeggs3_s     <- recode(pre2$milkandeggs3_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$stretchyprot_s     <- recode(pre2$stretchyprot_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$meiosisdna2_s      <- recode(pre2$meiosisdna2_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$childrenlooks_s    <- recode(pre2$childrenlooks_r     ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$heterodominant_s   <- recode(pre2$heterodominant_r    ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$animalmole_s       <- recode(pre2$animalmole_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$celldivision_s     <- recode(pre2$celldivision_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$serinelysine_s     <- recode(pre2$serinelysine_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$femaleegg_s        <- recode(pre2$femaleegg_r         ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$inheritpattern5_s  <- recode(pre2$inheritpattern5_r   ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$twoeggs_s          <- recode(pre2$twoeggs_r           ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$genoch_s           <- recode(pre2$genoch_r            ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$sicksam_s          <- recode(pre2$sicksam_r           ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$robertcells1_s     <- recode(pre2$robertcells1_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$skipgeneration2_s  <- recode(pre2$skipgeneration2_r   ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$ginfoeye_s         <- recode(pre2$ginfoeye_r          ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$diagram2label_rall <- recode(pre2$diagram2label_rall  ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$affectphys3_s      <- recode(pre2$affectphys3_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminochains2_s     <- recode(pre2$aminochains2_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$scorpion_s         <- recode(pre2$scorpion_r          ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$freckles_s         <- recode(pre2$freckles_r          ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$olinprotein_s      <- recode(pre2$olinprotein_r       ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$notfunction1_s     <- recode(pre2$notfunction1_r      ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$fabry_s            <- recode(pre2$fabry_r             ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$genetransfer2_s    <- recode(pre2$genetransfer2_r     ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$aminoseq3_s        <- recode(pre2$aminoseq3_r         ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$spermtrait_s       <- recode(pre2$spermtrait_r        ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$childskincolor_s   <- recode(pre2$childskincolor_r    ,"''=;''=;''=;''=",as.factor.result=T)
+pre2$uncleinherit_s     <- recode(pre2$uncleinherit_r      ,"''=;''=;''=;''=",as.factor.result=T)
+
+
+
+pre2$affectphys_s      <- recode(pre2$affectphys_r      ,"'A'=1  ;'B'=1  ;'C'=2    ;'D'=0  ",as.factor.result=T) # B   C
+pre2$dimples_s         <- recode(pre2$dimples_r         ,"'A'=1  ;'B'=3  ;'C'=2    ;'D'=1  ",as.factor.result=T) # E   M
+pre2$ald_s             <- recode(pre2$ald_r             ,"'A'=2  ;'B'=1  ;'C'=3    ;'D'=1  ",as.factor.result=T) # F1  M
+pre2$auntinherit_s     <- recode(pre2$auntinherit_r     ,"'A'=0  ;'B'=1  ;'C'=0    ;'D'=0  ",as.factor.result=T) # E   M
+pre2$aminoseq2_s       <- recode(pre2$aminoseq2_r       ,"'A'='-';'B'=3  ;'C'='-'  ;'D'='-'",as.factor.result=T) # B   C
+pre2$childeyecolornew_s<- recode(pre2$childeyecolornew_r,"'A'=1  ;'B'=0  ;'C'=2    ;'D'=0  ",as.factor.result=T) # B   C
+pre2$eggtrait_s        <- recode(pre2$eggtrait_r        ,"'A'=2  ;'B'=2  ;'C'=3    ;'D'=1  ",as.factor.result=T) # E   M
+pre2$genetransfer_s    <- recode(pre2$genetransfer_r    ,"'A'=1  ;'B'=3  ;'C'=2    ;'D'=0  ",as.factor.result=T) # A1  C
+pre2$milkandeggs2_s    <- recode(pre2$milkandeggs2_r    ,"'A'='-';'B'=1  ;'C'=1    ;'D'=2  ",as.factor.result=T) # C   C
+pre2$inheritpattern5_s <- recode(pre2$inheritpattern5_r ,"'A'=2  ;'B'=1  ;'C'=3    ;'D'=1  ",as.factor.result=T) # F3  M
+pre2$notfunction_s     <- recode(pre2$notfunction_r     ,"'A'='-';'B'='-';'C'=3    ;'D'='-'",as.factor.result=T) # C1  C
+pre2$scorpion_s        <- recode(pre2$scorpion_r        ,"'A'=2  ;'B'=3  ;'C'=1    ;'D'=0  ",as.factor.result=T) # A1  C
+pre2$aminoseq4_s       <- recode(pre2$aminoseq4_r       ,"'A'='-';'B'='-';'C'='-'  ;'D'=3  ",as.factor.result=T) # B   C
+pre2$spiderwebsilk_s   <- recode(pre2$spiderwebsilk_r   ,"'A'=0  ;'B'=1  ;'C'=2    ;'D'=3  ",as.factor.result=T) # A1  C
+pre2$stretchyprot_s    <- recode(pre2$stretchyprot_r    ,"'A'=0  ;'B'=1  ;'C'=0    ;'D'=2  ",as.factor.result=T) # C2  C
+pre2$ginfoeye_s        <- recode(pre2$ginfoeye_r        ,"'A'=1  ;'B'=1  ;'C'=1    ;'D'=2  ",as.factor.result=T) # A3  C
+pre2$disappeartrait_s  <- recode(pre2$disappeartrait_r  ,"'A'=2  ;'B'=1  ;'C'=1    ;'D'=0  ",as.factor.result=T) # F1  M
+pre2$aminoacidchoose_s <- recode(pre2$aminoacidchoose_r ,"'A'=2  ;'B'=1  ;'C'=3    ;'D'='-'",as.factor.result=T) # B   C
+pre2$lipinprotein_s    <- recode(pre2$lipinprotein_r    ,"'A'=0  ;'B'=2  ;'C'=1    ;'D'=1  ",as.factor.result=T) # F3  M
+pre2$animalmole_s      <- recode(pre2$animalmole_r      ,"'A'=0  ;'B'=1  ;'C'=1    ;'D'=1  ",as.factor.result=T) # C1  C
+pre2$fqsperm2_s        <- recode(pre2$fqsperm2_r        ,"'A'=1  ;'B'=2  ;'C'=3    ;'D'=2  ",as.factor.result=T) # E   M
+pre2$malesperm2_s      <- recode(pre2$malesperm2_r      ,"'A'=3  ;'B'=1  ;'C'=2    ;'D'=1  ",as.factor.result=T) # E   M
+pre2$humangenes_s      <- recode(pre2$humangenes_r      ,"'A'=1  ;'B'=0  ;'C'='0.5';'D'=0  ",as.factor.result=T) # A2  C
+pre2$sickangela_s      <- recode(pre2$sickangela_r      ,"'A'=1  ;'B'=0  ;'C'=0    ;'D'=2  ",as.factor.result=T) # F2  M
+pre2$jellypigletglow_s <- recode(pre2$jellypigletglow_r ,"'A'=2  ;'B'=3  ;'C'=1    ;'D'=0  ",as.factor.result=T) # A1  C
+pre2$modeinherit1_s    <- recode(pre2$modeinherit1_r    ,"'A'=3  ;'B'=0  ;'C'=1    ;'D'=1  ",as.factor.result=T) # F1  M
+pre2$valinelysine_s    <- recode(pre2$valinelysine_r    ,"'A'=3  ;'B'=2  ;'C'=1    ;'D'=0  ",as.factor.result=T) # C2  C
+pre2$babytraits2_s     <- recode(pre2$babytraits2_r     ,"'A'=0  ;'B'='-';'C'='-'  ;'D'=2  ",as.factor.result=T) # F1  M
+pre2$robertcells1_s    <- recode(pre2$robertcells1_r    ,"'A'=2  ;'B'=1  ;'C'=3    ;'D'=1  ",as.factor.result=T) # A3  C
+pre2$olinprotein_s     <- recode(pre2$olinprotein_r     ,"'A'=0  ;'B'=2  ;'C'=1    ;'D'=1  ",as.factor.result=T) # F3  M
+pre2$aminochains_s     <- recode(pre2$aminochains_r     ,"'A'=3  ;'B'=2  ;'C'=0    ;'D'=2  ",as.factor.result=T) # C2  C
+pre2$sicksam_s         <- recode(pre2$sicksam_r         ,"'A'=3  ;'B'=1  ;'C'=2    ;'D'=2  ",as.factor.result=T) # F3  M
+pre2$childrenlooks_s   <- recode(pre2$childrenlooks_r   ,"'A'=0  ;'B'='-';'C'=1    ;'D'='-'",as.factor.result=T) # F1  M
+pre2$argueprotein_s    <- recode(pre2$argueprotein_r    ,"'A'=1  ;'B'=3  ;'C'=0    ;'D'=2  ",as.factor.result=T) # C1  C
+pre2$heterodominant_s  <- recode(pre2$heterodominant_r  ,"'A'=1  ;'B'=3  ;'C'=2    ;'D'=2  ",as.factor.result=T) # F3  M
+comb2$dimples_s          <-recode(comb2$dimples_r,          "'A'=1;'B'=3;'C'=1;'D'=2", as.factor.result=T) 
+comb2$argueprotein_s     <-recode(comb2$argueprotein_r,     "'A'=1;'B'=3;'C'=0;'D'=2", as.factor.result=T)
+comb2$childeyecolornew_s <-recode(comb2$childeyecolornew_r, "'A'=1;'B'=0;'C'=2;'D'=0", as.factor.result=T)
+comb2$robertcells1_s     <-recode(comb2$robertcells1_r,     "'A'=2;'B'=1;'C'=3;'D'=1", as.factor.result=T)
+
+comb2$modeinherit_orig_rall <- comb2$modeinherit1_rall
+comb2$modeinherit_orig_s    <- comb2$modeinherit1_s
+comb2$modeinherit1_new_r <- comb2$modeinherit_r
+comb2$modeinherit1_new_s <- comb2$modeinherit_s
+
+fhsfulldata$animalmole_s <-recode(fhsfulldata$animalmole_r, "'A'=0;'B'=2;'C'=1;'D'=1", as.factor.result=T)
+fhsfulldata$modeinherit1_new_r <- fhsfulldata$modeinherit1_r
+fhsfulldata$modeinherit1_new_s <- fhsfulldata$modeinherit1_s
+
+
+
+#  From the discussion on 6/6/2013
+#  / = blank
+#  L0 = all wrong
+#  L1 = D,C not E
+#  L2 = D,C,E and A somewhere
+#  L3 = D,C,E,A,F,B
+pre2$diagram2label_s   <- recode(pre2$diagram2label_rall,"
+                                 '/,/,/,/,/,/'='';
+                                 '/,/,A,/,F,E'=0;
+                                 '/,D,A,E,B,F'=0;
+                                 'A,C,B,E,D,E'=0;
+                                 'A,C,D,B,E,F'=0;
+                                 'A,D,B,E,C,F'=0;
+                                 'A,D,C,B,E,F'=0;
+                                 'A,D,E,/,F,D'=0;
+                                 'B,C,A,/,F,/'=0;
+                                 'B,C,A,E,F,D'=0;
+                                 'B,C,A,F,E,A'=0;
+                                 'B,C,D,A,E,F'=0;
+                                 'B,C,D,E,A,F'=0;
+                                 'B,C,D,F,A,E'=0;
+                                 'B,C,D,F,E,A'=0;
+                                 'B,C,E,D,F,A'=0;
+                                 'B,C,E,F,C,D'=0;
+                                 'B,D,/,A,F,E'=0;
+                                 'B,D,A,F,C,E'=0;
+                                 'B,D,C,A,E,F'=0;
+                                 'B,D,C,A,F,E'=0;
+                                 'B,D,C,E,A,F'=0;
+                                 'B,D,C,E,F,A'=0;
+                                 'B,D,C,F,A,E'=0;
+                                 'B,D,C,F,E,A'=0;
+                                 'B,D,E,A,C,F'=0;
+                                 'B,D,E,A,F,F'=0;
+                                 'B,D,E,C,A,F'=0;
+                                 'B,D,E,F,A,C'=0;
+                                 'B,D,E,F,C,A'=0;
+                                 'B,E,C,A,C,F'=0;
+                                 'B,E,D,F,C,A'=0;
+                                 'C,/,B,F,E,A'=0;
+                                 'C,/,D,A,E,F'=0;
+                                 'C,A,D,E,B,F'=0;
+                                 'C,A,D,E,F,B'=0;
+                                 'C,B,D,A,E,F'=0;
+                                 'C,B,D,E,A,F'=0;
+                                 'C,B,D,F,A,E'=0;
+                                 'C,B,E,/,A,F'=0;
+                                 'C,D,A,B,E,F'=0;
+                                 'C,D,A,B,F,E'=0;
+                                 'C,D,A,E,B,F'=0;
+                                 'C,D,A,F,E,B'=0;
+                                 'C,D,B,/,F,A'=0;
+                                 'C,D,B,A,E,F'=0;
+                                 'C,D,B,E,A,F'=0;
+                                 'C,D,B,E,F,A'=0;
+                                 'C,D,B,F,A,E'=0;
+                                 'C,D,B,F,E,A'=0;
+                                 'C,D,E,A,B,F'=0;
+                                 'C,D,E,A,F,B'=0;
+                                 'C,D,E,B,A,F'=0;
+                                 'C,D,E,B,F,A'=0;
+                                 'C,D,E,F,A,B'=0;
+                                 'C,D,E,F,B,A'=0;
+                                 'C,E,B,F,A,F'=0;
+                                 'D,/,B,F,C,E'=0;
+                                 'D,/,B,F,E,A'=0;
+                                 'D,/,C,F,A,E'=0;
+                                 'D,A,A,E,C,B'=0;
+                                 'D,A,B,C,E,F'=0;
+                                 'D,A,B,E,C,F'=0;
+                                 'D,A,B,F,C,E'=0;
+                                 'D,A,B,F,E,C'=0;
+                                 'D,A,C,F,B,E'=0;
+                                 'D,A,E,B,F,B'=0;
+                                 'D,A,E,F,B,C'=0;
+                                 'D,B,A,C,E,F'=0;
+                                 'D,B,A,F,E,C'=0;
+                                 'D,B,C,A,F,E'=0;
+                                 'D,B,C,E,A,F'=0;
+                                 'D,B,C,E,F,A'=0;
+                                 'D,B,C,F,E,A'=0;
+                                 'D,B,E,A,C,F'=0;
+                                 'D,B,E,C,A,F'=0;
+                                 'D,B,E,F,C,A'=0;
+                                 'D,C,/,A,F,B'=1;
+                                 'D,C,/,B,F,A'=1;
+                                 'D,C,/,F,A,E'=1;
+                                 'D,C,A,/,E,/'=1;
+                                 'D,C,A,B,E,F'=1;
+                                 'D,C,A,B,F,E'=1;
+                                 'D,C,A,E,A,B'=1;
+                                 'D,C,A,E,B,F'=1;
+                                 'D,C,A,E,F,B'=1;
+                                 'D,C,A,F,B,E'=1;
+                                 'D,C,A,F,E,B'=1;
+                                 'D,C,B,A,E,F'=1;
+                                 'D,C,B,A,F,E'=1;
+                                 'D,C,B,E,A,F'=1;
+                                 'D,C,B,E,F,A'=1;
+                                 'D,C,B,F,/,A'=1;
+                                 'D,C,B,F,/,E'=1;
+                                 'D,C,B,F,A,E'=1;
+                                 'D,C,B,F,C,E'=1;
+                                 'D,C,B,F,E,/'=1;
+                                 'D,C,B,F,E,A'=1;
+                                 'D,C,B,F,E,F'=1;
+                                 'D,C,C,E,F,A'=1;
+                                 'D,C,E,/,/,F'=2;
+                                 'D,C,E,/,F,A'=2;
+                                 'D,C,E,A,B,F'=2;
+                                 'D,C,E,A,F,B'=3;
+                                 'D,C,E,B,/,F'=2;
+                                 'D,C,E,B,A,F'=2;
+                                 'D,C,E,B,F,A'=2;
+                                 'D,C,E,F,/,B'=2;
+                                 'D,C,E,F,A,B'=2;
+                                 'D,C,E,F,B,/'=2;
+                                 'D,C,E,F,B,A'=2;
+                                 'D,C,E,F,F,A'=2;
+                                 'D,C,F,A,B,E'=1;
+                                 'D,C,F,A,E,B'=1;
+                                 'D,E,B,A,C,F'=0;
+                                 'D,E,B,A,F,C'=0;
+                                 'D,E,B,C,F,A'=0;
+                                 'D,E,B,F,C,A'=0;
+                                 'D,E,C,A,A,F'=0;
+                                 'D,E,C,A,B,F'=0;
+                                 'D,E,C,B,A,F'=0;
+                                 'D,E,C,F,A,B'=0;
+                                 'D,E,C,F,B,A'=0;
+                                 'D,F,B,A,E,C'=0;
+                                 'E,B,C,D,A,F'=0;
+                                 'E,B,C,F,D,/'=0;
+                                 'E,C,A,D,B,F'=0;
+                                 'E,C,B,A,F,F'=0;
+                                 'E,C,D,A,B,F'=0;
+                                 'E,C,D,A,F,B'=0;
+                                 'E,C,D,F,A,B'=0;
+                                 'E,C,D,F,B,A'=0;
+                                 'E,D,A,/,B,F'=0;
+                                 'E,D,C,B,A,F'=0;
+                                 'F,C,D,E,A,B'=0",as.factor.result=T) # A2  C
+
+pre2$genefunct1_s      <- recode(pre2$genefunct1_r      ,"'A'=0  ;'B'=1  ;'C'=0  ;'D'=2  ",as.factor.result=T) # B   C
+pre2$celldivision_s    <- recode(pre2$celldivision_r    ,"'A'='-';'B'=3  ;'C'='-';'D'='-'",as.factor.result=T) # C1  C
+pre2$genoch_s          <- recode(pre2$genoch_r          ,"'A'=1  ;'B'=2  ;'C'=3  ;'D'=1  ",as.factor.result=T) # F1  M
+pre2$serinelysine_s    <- recode(pre2$serinelysine_r    ,"'A'=2  ;'B'=3  ;'C'=0  ;'D'=1  ",as.factor.result=T) # C2  C
+pre2$heterosick_s      <- recode(pre2$heterosick_r      ,"'A'='-';'B'='-';'C'='-';'D'=3  ",as.factor.result=T) # F3  M
+pre2$childskincolor_s  <- recode(pre2$childskincolor_r  ,"'A'=1  ;'B'=0  ;'C'=2  ;'D'=0  ",as.factor.result=T) # B   C
+pre2$scorpion2_s       <- recode(pre2$scorpion2_r       ,"'A'=2  ;'B'=3  ;'C'=1  ;'D'=0  ",as.factor.result=T) # A1  C
+pre2$freckles_s        <- recode(pre2$freckles_r        ,"'A'=1  ;'B'=3  ;'C'=2  ;'D'=1  ",as.factor.result=T) # E   M
+pre2$notfunction1_s    <- recode(pre2$notfunction1_r    ,"'A'='-';'B'='-';'C'='-';'D'=3  ",as.factor.result=T) # C1  C
+pre2$aminoseq3_s       <- recode(pre2$aminoseq3_r       ,"'A'='-';'B'=3  ;'C'='-';'D'='-'",as.factor.result=T) # B   C
+pre2$inheritpattern6a_s<- recode(pre2$inheritpattern6a_r,"'A'=2  ;'B'=1  ;'C'=3  ;'D'=1  ",as.factor.result=T) # F3  M
+pre2$affectphys2_s     <- recode(pre2$affectphys2_r     ,"'A'=1  ;'B'=1  ;'C'=2  ;'D'=0  ",as.factor.result=T) # B   C
+pre2$genetransfer2_s   <- recode(pre2$genetransfer2_r   ,"'A'=1  ;'B'=3  ;'C'=2  ;'D'=0  ",as.factor.result=T) # A1  C
+pre2$spermtrait_s      <- recode(pre2$spermtrait_r      ,"'A'=2  ;'B'=2  ;'C'=3  ;'D'=1  ",as.factor.result=T) # E   M
+pre2$fabry_s           <- recode(pre2$fabry_r           ,"'A'=2  ;'B'=1  ;'C'=3  ;'D'=1  ",as.factor.result=T) # F1  M
+pre2$uncleinherit_s    <- recode(pre2$uncleinherit_r    ,"'A'=0  ;'B'=1  ;'C'=0  ;'D'=0  ",as.factor.result=T) # E   M
+pre2$eggtrait2_s       <- recode(pre2$eggtrait2_r       ,"'A'=2  ;'B'=2  ;'C'=3  ;'D'=1  ",as.factor.result=T) # E   M
+
